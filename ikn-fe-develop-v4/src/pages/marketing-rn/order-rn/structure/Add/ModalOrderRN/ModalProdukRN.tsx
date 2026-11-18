@@ -1,0 +1,331 @@
+import {
+  Button,
+  Input,
+  Modal,
+  Space,
+  Table,
+  type TableColumnsType,
+  InputRef,
+  TableColumnType,
+  Card,
+  Pagination,
+} from 'antd';
+import { useMemo, useRef } from 'react';
+
+import { MagnifyingGlass } from '@phosphor-icons/react';
+import type { FilterDropdownProps } from 'antd/es/table/interface';
+import Highlighter from 'react-highlight-words';
+// import * as BarangJadiAxios from "@pages/master/barang-jadi/service/BarangJadiAxios";
+import { currencyFormatter } from '@/utils/helper';
+import * as interfacesGlobal from '@/utils/interfaces/interfacesGlobal';
+import * as BarangJadiMasterAxios from '@pages/master/barang-jadi/service/BarangJadiAxios';
+import { useState } from '@/hooks/React/useState';
+import { useEffect } from '@/hooks/React/useEffect';
+
+type DataIndex = keyof interfacesGlobal.ProductType;
+
+export default function ModalProdukRN({
+  setOpen,
+  open,
+  handleRowDoubleClick,
+}: Readonly<{ setOpen: Function; open: boolean; handleRowDoubleClick: Function }>) {
+  const [searchText, setSearchText] = useState('');
+  const [searchedColumn, setSearchedColumn] = useState('');
+  const searchInput = useRef<InputRef>(null);
+  const [dataTable, setTable] = useState({
+    data: [],
+    page: 1,
+    limit: 5,
+    loading: false,
+    kode: null,
+    keterangan: null,
+    total: 0,
+    kodeBarang: null,
+    kodeKategori: null,
+    nama: null,
+    unit: null,
+    namaBarang: null,
+    spesifikasi: null,
+    kodeSatuan: null,
+    nilaiSatuan: null,
+    kategori: null,
+    Satuan: null,
+    unitNama: null,
+    sortBy: '',
+    sortOrder: '',
+  });
+
+  useEffect(() => {
+    const fetch = async () => {
+      const res = await BarangJadiMasterAxios.fetchDataProduct(dataTable);
+      setTable((prev) => ({
+        ...prev,
+        data: res?.data?.data?.data,
+        loading: false,
+        total: res?.data?.data?.totalData,
+      }));
+    };
+    fetch();
+  }, [
+    dataTable.page,
+    dataTable.keterangan,
+    dataTable.kode,
+    dataTable.kodeBarang,
+    dataTable.kodeKategori,
+    dataTable.nama,
+    dataTable.unit,
+    dataTable.namaBarang,
+    dataTable.spesifikasi,
+    dataTable.kodeSatuan,
+    dataTable.sortBy,
+    dataTable.sortOrder,
+    dataTable.nilaiSatuan,
+    dataTable.kategori,
+    dataTable.Satuan,
+    dataTable.unitNama,
+  ]);
+
+  const dataSource: interfacesGlobal.ProductType[] = useMemo(
+    () => dataTable.data,
+    [dataTable.data]
+  );
+
+  const handleSearch = (
+    selectedKeys: string[],
+    confirm: FilterDropdownProps['confirm'],
+    dataIndex: DataIndex
+  ) => {
+    confirm();
+    setTable((prev) => ({ ...prev, page: 1, [dataIndex]: selectedKeys[0] }));
+  };
+
+  const handleReset = (
+    clearFilters: () => void,
+    confirm: FilterDropdownProps['confirm'],
+    dataIndex: string
+  ) => {
+    clearFilters();
+    setSearchText('');
+    confirm();
+    setTable((prev) => ({ ...prev, [dataIndex]: null }));
+  };
+
+  const getColumnSearchProps = (
+    dataIndex: DataIndex
+  ): TableColumnType<interfacesGlobal.ProductType> => ({
+    sorter: true,
+    filterDropdown: ({ setSelectedKeys, selectedKeys, confirm, clearFilters, close }) => (
+      <div
+        style={{
+          padding: 8,
+          background: 'white',
+          zIndex: 99999,
+          position: 'relative',
+        }}
+        onKeyDown={(e) => e.stopPropagation()}
+      >
+        <Input
+          ref={searchInput}
+          placeholder={`Search ${dataIndex}`}
+          value={selectedKeys[0]}
+          onChange={(e) => setSelectedKeys(e.target.value ? [e.target.value] : [])}
+          onPressEnter={() => handleSearch(selectedKeys as string[], confirm, dataIndex)}
+          style={{ marginBottom: 8, display: 'block' }}
+        />
+        <Space>
+          <Button
+            type="primary"
+            onClick={() => handleSearch(selectedKeys as string[], confirm, dataIndex)}
+            icon={<MagnifyingGlass />}
+            size="small"
+            style={{ width: 90 }}
+          >
+            Search
+          </Button>
+          <Button
+            onClick={() => clearFilters && handleReset(clearFilters, confirm, dataIndex)}
+            size="small"
+            style={{ width: 90 }}
+          >
+            Reset
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            onClick={() => {
+              confirm({ closeDropdown: false });
+              setSearchText((selectedKeys as string[])[0]);
+              setSearchedColumn(dataIndex);
+            }}
+          >
+            Filter
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            onClick={() => {
+              close();
+            }}
+          >
+            close
+          </Button>
+        </Space>
+      </div>
+    ),
+    filterIcon: (filtered: boolean) => (
+      <MagnifyingGlass style={{ color: filtered ? '#1677ff' : undefined }} />
+    ),
+    filterDropdownProps: {
+      onOpenChange(open) {
+        if (open) {
+          setTimeout(() => searchInput.current?.select(), 100);
+        }
+      },
+    },
+    render: (text) =>
+      searchedColumn === dataIndex ? (
+        <Highlighter
+          highlightStyle={{ backgroundColor: '#ffc069', padding: 0 }}
+          searchWords={[searchText]}
+          autoEscape
+          textToHighlight={text ? text.toString() : ''}
+        />
+      ) : (
+        text
+      ),
+  });
+
+  const baseColumns: TableColumnsType<interfacesGlobal.ProductType> = [
+    {
+      title: 'Kode Barang',
+      dataIndex: 'kodeBarang',
+      width: 200,
+      align: 'center',
+      ...getColumnSearchProps('kodeBarang'),
+    },
+
+    {
+      title: 'Nama Barang',
+      dataIndex: 'namaBarang',
+      width: 200,
+      align: 'center',
+      ...getColumnSearchProps('namaBarang'),
+    },
+    {
+      title: 'Spesifikasi',
+      dataIndex: 'spesifikasi',
+      width: 200,
+      align: 'center',
+      ...getColumnSearchProps('spesifikasi'),
+    },
+    {
+      title: 'Stock',
+      dataIndex: 'stok',
+      width: 200,
+      align: 'center',
+      // ...getColumnSearchProps('stok'),
+      render: (stock) => {
+        return <span>{currencyFormatter(stock || 0)}</span>;
+      },
+    },
+
+    {
+      title: 'Berat Satuan',
+      dataIndex: 'nilaiSatuan',
+      width: 200,
+      align: 'center',
+      ...getColumnSearchProps('nilaiSatuan'),
+      render: (nilaiSatuan) => {
+        return <span>{currencyFormatter(nilaiSatuan)}</span>;
+      },
+    },
+    {
+      title: 'Kategori',
+      dataIndex: 'kategori',
+      width: 200,
+      align: 'center',
+      ...getColumnSearchProps('kategori'),
+    },
+    {
+      title: 'Satuan',
+      dataIndex: 'Satuan',
+      width: 200,
+      align: 'center',
+      ...getColumnSearchProps('Satuan'),
+    },
+    {
+      title: 'Unit',
+      dataIndex: 'unitNama',
+      width: 200,
+      align: 'center',
+      // ...getColumnSearchProps('unitNama'),
+    },
+  ];
+
+  const handleTableChange = (_pagination: any, _filters: any, sorter: any) => {
+    const sortField = sorter.field;
+    const sortOrder = sorter.order === 'ascend' ? 'asc' : 'desc';
+    setTable((prev) => ({ ...prev, sortBy: sortField, sortOrder: sortOrder }));
+  };
+
+  return (
+    <Modal
+      title={<p>Pilih Produk</p>}
+      loading={dataTable.loading}
+      open={open}
+      width={{
+        xs: '90%',
+        sm: '80%',
+        md: '70%',
+        lg: '60%',
+        xl: '50%',
+        xxl: '40%',
+      }}
+      onCancel={() => setOpen(false)}
+      footer={[
+        <Button key="cancel" onClick={() => setOpen(false)}>
+          Cancel
+        </Button>,
+      ]}
+    >
+      <Table<interfacesGlobal.ProductType>
+        rowKey="key"
+        bordered={true}
+        scroll={{ x: 'max-content' }} // Hindari overflow
+        columns={baseColumns}
+        dataSource={dataSource}
+        loading={dataTable.loading}
+        onChange={handleTableChange}
+        pagination={false}
+        rowClassName={(_record, index) => (index % 2 === 0 ? 'table-row-light' : 'table-row-dark')}
+        onRow={(record) => {
+          return {
+            onDoubleClick: () => handleRowDoubleClick(record),
+          };
+        }}
+      />
+      <Card
+        style={{
+          backgroundColor: 'white',
+          padding: 0,
+          textAlign: 'center',
+          marginTop: 10,
+          boxShadow: '0px 2px 5px rgba(0, 0, 0, 0.1)',
+        }}
+      >
+        <Pagination
+          showLessItems
+          key={dataTable.page}
+          defaultCurrent={dataTable.page}
+          total={dataTable.total}
+          defaultPageSize={dataTable.limit}
+          showSizeChanger={false}
+          showQuickJumper
+          onChange={(page) => {
+            setTable((prev) => ({ ...prev, page: page }));
+          }}
+        />
+      </Card>
+    </Modal>
+  );
+}

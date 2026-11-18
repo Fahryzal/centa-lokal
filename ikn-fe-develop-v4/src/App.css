@@ -1,0 +1,47 @@
+body.resizing {
+  user-select: none;
+  cursor: col-resize;
+}
+
+.ant-table-cell {
+  z-index: 100 !important;
+}
+.table-row-red {
+  background-color: #ffe6e6 !important;
+  cursor: not-allowed;
+  pointer-events: none; /* kalau mau benar-benar tidak bisa di klik */
+  font-weight: bold;
+}
+
+.table-row-adjust-false {
+  color: red;
+  font-weight: bold;
+}
+
+/* ResizableSider.css */
+.resizer:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.row-locked {
+  position: relative;
+  background-color: #ffeaea !important;
+  color: #cf1322 !important;
+  cursor: not-allowed;
+}
+
+.row-locked:hover::after {
+  content: 'Account telah dikunci';
+  position: absolute;
+  left: 50%;
+  top: -28px;
+  transform: translateX(-50%);
+  background-color: #cf1322;
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 999;
+}

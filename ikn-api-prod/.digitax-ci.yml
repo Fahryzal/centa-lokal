@@ -1,0 +1,30 @@
+# tahapan
+stages:
+  - build_image_staging
+  - deploy_staging
+
+# build image on server dev sims
+build_image:
+  stage: build_image_staging
+  script:
+    - cp $ENV_STAGING $CI_PROJECT_DIR/.env
+    - docker build -t $PROJECT_NAME:$CI_COMMIT_SHORT_SHA .
+  only:
+    - staging
+  when: manual
+  tags:
+    - staging #runner digitax
+
+# deploy image to server dev sims
+deploy_staging:
+  stage: deploy_staging
+  script:
+    - sed -i -e 's/PROJECT_NAME/'$PROJECT_NAME'/g' docker-compose.yaml
+    - sed -i -e 's/TAG/'$CI_COMMIT_SHORT_SHA'/g' docker-compose.yaml
+    - sed -i -e 's/PROJECT_PORT/'$PROJECT_PORT'/g' docker-compose.yaml
+    - docker stack deploy $PROJECT_NAME -c docker-compose.yaml
+  only:
+    - staging
+  when: manual
+  tags:
+    - staging #runner digitax

@@ -1,0 +1,5 @@
+{
+  "release": "0.0.20",
+  "notes": ["Perbaikan: 1. Laporan penjualan tambah kolom PPN. 2.Informasi stok (administrator). 3.Fitur search unit pada interface buku besar"],
+  "updatedAt": "2026-06-11"
+}

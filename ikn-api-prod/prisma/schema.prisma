@@ -1,0 +1,1678 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL_LOCAL")
+}
+
+model User {
+  id                       String                     @id @default(uuid())
+  name                     String                     @unique
+  email                    String                     @unique
+  password                 String
+  nik                      String
+  jabatan                  String
+  refreshToken             String?
+  createdAt                DateTime                   @default(now())
+  deletedAt                DateTime?
+  isPusat                  Boolean                    @default(false)
+  unitId                   String
+  isRoot                   IsRoot                     @default(N)
+  account                  Account[]
+  approvedRequests         ApprovalRequest[]          @relation("ApprovedByUser")
+  createdRequests          ApprovalRequest[]          @relation("CreatedByUser")
+  bankAccount              BankAccount[]
+  cashBankTransaction      CashBankTransaction[]
+  cashFlow                 CashFlow[]
+  contracts                Contract[]                 @relation("SignedContracts")
+  customer                 Customer[]
+  deliveryOrder            DeliveryOrder[]
+  generalLedger            GeneralLedger[]
+  invoice                  Invoice[]
+  invoiceEkspor            InvoiceEkspor[]
+  journalEntry             JournalEntry[]
+  masterBarangJadi         MasterBarangJadi[]
+  masterKategoriBarangJadi MasterKategoriBarangJadi[]
+  masterSatuan             MasterSatuan[]
+  openingBalance           OpeningBalance[]
+  openingBalanceHeader     OpeningBalanceHeader[]
+  OpeningBankDetails       OpeningBankDetails[]
+  payrolls                 Payroll[]
+  ProductionIssue          ProductionIssue[]
+  productionReceipt        ProductionReceipt[]
+  PurchaseOrder            PurchaseOrder[]
+  sPB                      SPB[]
+  SalesPlan                SalesPlan[]
+  StockRequest             StockRequest[]
+  tax                      Tax[]
+  taxes                    Tax[]                      @relation("UserTax")
+  TaxReport                TaxReport[]
+  unit                     MasterUnit                 @relation(fields: [unitId], references: [id])
+  ServiceLog               ServiceLog[]
+  roles                    UserRole[]
+}
+
+model ServiceLog {
+  id           String    @id @default(uuid())
+  status       LogStatus
+  action       String
+  actorName    String
+  actorId      String?
+  moduleName   String?
+  method       String
+  url          String
+  httpStatus   Int
+  durationMs   Int
+  ip           String?
+  userAgent    String?
+  requestBody  Json?
+  responseBody Json?
+  errorDetail  String?
+  errorStack   String?
+  metadata     Json?
+  createdAt    DateTime  @default(now())
+  deletedAt    DateTime?
+  actor        User?     @relation(fields: [actorId], references: [id])
+
+  @@index([createdAt])
+  @@index([actorId])
+  @@index([moduleName])
+  @@map("service_logs")
+}
+
+model Role {
+  id          Int              @id @default(autoincrement())
+  name        String           @unique
+  createdAt   DateTime         @default(now())
+  deletedAt   DateTime?
+  permissions RolePermission[]
+  users       UserRole[]
+}
+
+model UserRole {
+  userId    String
+  roleId    Int
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+  role      Role      @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model Menu {
+  id          Int              @id @default(autoincrement())
+  name        String           @unique
+  path        String           @unique
+  icon        String?
+  createdAt   DateTime         @default(now())
+  deletedAt   DateTime?
+  nameParent  String?
+  parentId    Int?
+  parent      Menu?            @relation("MenuToSubmenu", fields: [parentId], references: [id])
+  children    Menu[]           @relation("MenuToSubmenu")
+  permissions RolePermission[]
+}
+
+model RolePermission {
+  roleId     Int
+  menuId     Int
+  canView    Boolean   @default(false)
+  canAdd     Boolean   @default(false)
+  canEdit    Boolean   @default(false)
+  canDelete  Boolean   @default(false)
+  canApprove Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  deletedAt  DateTime?
+  menu       Menu      @relation(fields: [menuId], references: [id])
+  role       Role      @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, menuId])
+  @@map("role_permissions")
+}
+
+model Customer {
+  id            String          @id @default(uuid())
+  code          String
+  name          String
+  address       String
+  unit          String
+  email         String?
+  phone         String?
+  country       String?
+  continent     String?
+  regional_type String
+  fax           String?
+  staffId       String
+  deletedAt     DateTime?
+  createdAt     DateTime        @default(now())
+  staff         User            @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  invoiceEkspor InvoiceEkspor[]
+  purchaseOrder PurchaseOrder[]
+}
+
+model InvoiceTax {
+  id                 String   @id @default(uuid())
+  invoiceId          String
+  taxId              String
+  taxType            String
+  taxValue           Float
+  withheldByCustomer Boolean
+  isIncludedInPrice  Boolean
+  taxAmount          Float
+  createdAt          DateTime @default(now())
+  invoice            Invoice  @relation(fields: [invoiceId], references: [id])
+  tax                Tax      @relation(fields: [taxId], references: [id])
+
+  @@unique([invoiceId, taxId])
+}
+
+model Tax {
+  id               String             @id @default(uuid())
+  taxType          String
+  taxValue         Float
+  verifiedById     String?
+  status           String
+  createdAt        DateTime           @default(now())
+  invoiceId        String?
+  type             TypeTax
+  isActive         Boolean
+  staffId          String
+  accountCode      String             @unique
+  deletedAt        DateTime?
+  namaAccount      String
+  InvoiceTax       InvoiceTax[]
+  PurchaseOrderTax PurchaseOrderTax[]
+  SPBTax           SPBTax[]
+  account          Account            @relation(fields: [accountCode], references: [code], onDelete: Cascade)
+  invoice          Invoice?           @relation(fields: [invoiceId], references: [id])
+  staff            User               @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  verifiedBy       User?              @relation("UserTax", fields: [verifiedById], references: [id])
+}
+
+model TaxTypeMap {
+  id        String    @id @default(uuid())
+  name      String
+  code      String    @unique
+  rate      Float
+  position  Position
+  usage     String
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+}
+
+model Contract {
+  id              String         @id @default(uuid())
+  purchaseOrderId String?        @unique
+  deliveryOrderId String?        @unique
+  fileUrl         String
+  signedById      String?
+  createdAt       DateTime       @default(now())
+  deletedAt       DateTime?
+  deliveryOrder   DeliveryOrder? @relation(fields: [deliveryOrderId], references: [id], onDelete: Cascade)
+  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  signedBy        User?          @relation("SignedContracts", fields: [signedById], references: [id])
+  invoice         Invoice?
+}
+
+model Finance {
+  id              String         @id @default(uuid())
+  purchaseOrderId String?        @unique
+  amount          Float
+  accountCode     String
+  status          StatusFinance
+  deletedAt       DateTime?
+  createdAt       DateTime       @default(now())
+  account         Account        @relation(fields: [accountCode], references: [code])
+  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+}
+
+model BankAccount {
+  id                   String                @id @default(uuid())
+  accountCode          String
+  bankName             String
+  bankCode             String?               @default("BRIV")
+  currency             String
+  branchAddress        String
+  currencyRate         Decimal               @default(0)
+  bankAccountNumber    String
+  initialBalance       Float                 @default(0)
+  currentBalance       Float                 @default(0)
+  staffId              String
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  deletedAt            DateTime?
+  date                 DateTime
+  unitId               String
+  period               String?
+  isPosted             String                @default("Y")
+  currentBalanceDollar Float?
+  account              Account               @relation(fields: [accountCode], references: [code])
+  staff                User                  @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  unit                 MasterUnit            @relation(fields: [unitId], references: [id])
+  CashBankTransaction  CashBankTransaction[]
+  Invoice              Invoice[]
+  OpeningBankDetails   OpeningBankDetails[]
+
+  @@unique([unitId, accountCode, period], name: "unit_accountCode_periode")
+}
+
+model OpeningBankDetails {
+  id          String      @id @default(uuid())
+  headerId    String
+  unitId      String
+  accountCode String
+  staffId     String
+  debit       Float       @default(0)
+  credit      Float       @default(0)
+  fiscalYear  String
+  deletedAt   DateTime?
+  createdAt   DateTime?
+  account     Account     @relation(fields: [accountCode], references: [code])
+  header      BankAccount @relation(fields: [headerId], references: [id])
+  staff       User        @relation(fields: [staffId], references: [id])
+  unit        MasterUnit  @relation(fields: [unitId], references: [id])
+
+  @@unique([accountCode, headerId])
+}
+
+model AccountType {
+  id            String        @id @default(uuid())
+  name          String        @unique
+  code          String        @unique
+  normalBalance NormalBalance
+  description   String?
+  deletedAt     DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  accounts      Account[]
+}
+
+model Account {
+  id                         String                       @id @default(uuid())
+  code                       String                       @unique
+  name                       String
+  parentName                 String?
+  accountTypeId              String
+  parentId                   String?
+  isLocked                   Islocked                     @default(N)
+  typeNeraca                 String
+  deletedAt                  DateTime?
+  createdAt                  DateTime                     @default(now())
+  updatedAt                  DateTime                     @updatedAt
+  staffId                    String
+  accountType                AccountType                  @relation(fields: [accountTypeId], references: [id])
+  parent                     Account?                     @relation("AccountHierarchy", fields: [parentId], references: [code])
+  children                   Account[]                    @relation("AccountHierarchy")
+  staff                      User                         @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  AccountMapping             AccountMapping[]
+  bankAccount                BankAccount[]
+  budgets                    Budget[]
+  CashBankTransaction        CashBankTransaction[]
+  cashBankTransactionDetails CashBankTransactionDetails[]
+  cashFlow                   CashFlow[]
+  finance                    Finance[]
+  ledgers                    GeneralLedger[]
+  journalDetails             JournalEntryDetail[]
+  masterAcitva               MasterAcitva[]
+  masterRawMaterials         MasterRawMaterial[]
+  masterRekananBahanBaku     MasterRekananBahanBaku[]
+  OpeningBalance             OpeningBalance[]
+  OpeningBankDetails         OpeningBankDetails[]
+  purchaseOrderTax           PurchaseOrderTax[]
+  SPBTax                     SPBTax[]
+  tax                        Tax?
+}
+
+model GeneralLedger {
+  id            String     @id @default(uuid())
+  accountCode   String
+  period        String
+  debitTotal    Decimal
+  creditTotal   Decimal
+  openingDebit  Decimal
+  openingCredit Decimal
+  createdAt     DateTime   @default(now())
+  unitId        String
+  staffId       String
+  deletedAt     DateTime?
+  account       Account    @relation(fields: [accountCode], references: [code])
+  staff         User       @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  unit          MasterUnit @relation(fields: [unitId], references: [id])
+
+  @@unique([unitId, accountCode, period], name: "unit_accountCode_periode")
+}
+
+model AccountingPeriod {
+  period    String    @id
+  isLocked  Boolean   @default(false)
+  lockedAt  DateTime?
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model CashFlow {
+  id          String    @id @default(uuid())
+  accountCode String
+  amount      Float
+  staffId     String
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  account     Account   @relation(fields: [accountCode], references: [code], onDelete: Cascade)
+  staff       User      @relation(fields: [staffId], references: [id], onDelete: Cascade)
+}
+
+model Payroll {
+  id        String    @id @default(uuid())
+  userId    String
+  salary    Float
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Budget {
+  id          String     @id @default(uuid())
+  year        Int
+  month       Int
+  accountCode String
+  unitId      String
+  amount      Decimal    @db.Decimal(15, 2)
+  description String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+  account     Account    @relation(fields: [accountCode], references: [code])
+  unit        MasterUnit @relation(fields: [unitId], references: [id])
+
+  @@unique([year, month, accountCode, unitId], name: "unique_budget")
+}
+
+model Journal {
+  id          String         @id @default(uuid())
+  date        DateTime       @default(now())
+  description String
+  deletedAt   DateTime?
+  createdAt   DateTime       @default(now())
+  entries     JournalEntry[]
+}
+
+model AdditionalCharges {
+  id              String        @id @default(uuid())
+  purchaseOrderId String
+  amount          Float
+  description     String
+  type            String
+  createdAt       DateTime      @default(now())
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+}
+
+model PurchaseOrder {
+  id                     String              @id @default(uuid())
+  customerId             String
+  staffId                String
+  orderNumber            String              @unique
+  date                   DateTime
+  description            String?
+  franco                 String
+  fileUrl                String?
+  fileUrlKontrak         String?
+  fileUrlEkspor          String?
+  fileUrlProduksi        String?
+  fileUrlBl              String?
+  subtotalAmount         Float
+  approvedFile           String?
+  customerName           String
+  incoterms              Incoterms           @default(null)
+  status                 PurchaseOrderStatus @default(WAITING)
+  typePo                 TypePenjualan?      @default(null)
+  typePayment            TypePayment         @default(FULLPAYMENT_AFTER_INVOICE)
+  downPayment            Decimal             @default(0)
+  currency               CurrencyType        @default(RUPIAH)
+  unitId                 String
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+  postedAt               DateTime?
+  deletedAt              DateTime?
+  fileUrlSigned          String?
+  selectionStatus        SelectionStatus     @default(NOT_SELECTED)
+  selectionStatusInvoice SelectionStatus     @default(NOT_SELECTED)
+  taxAmount              Decimal             @default(0)
+  totalAmount            Decimal             @default(0)
+  cekPajak               CekPajak            @default(NO)
+  kebun                  String?
+  invoiceSelectionStatus SelectionStatus?
+  au58s                  AU58[]
+  additionalCharges      AdditionalCharges[]
+  Contract               Contract?
+  DeliveryOrder          DeliveryOrder[]
+  Finance                Finance?
+  customer               Customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  staff                  User                @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  unit                   MasterUnit          @relation(fields: [unitId], references: [id])
+  items                  PurchaseOrderItem[]
+  PurchaseOrderTax       PurchaseOrderTax[]
+  Receivable             Receivable?
+  spbs                   SPB[]
+}
+
+model PurchaseOrderItem {
+  id                       String                @id @default(uuid())
+  purchaseOrderId          String
+  quantity                 Float?
+  orderNumber              String?
+  orderDate                DateTime?
+  total                    Float
+  stockProduct             Float
+  priceProduct             Float
+  kodeBarangProduct        String
+  namabarangProduct        String
+  namabarangProductInvoice String
+  spesifikasiProduct       String
+  beratproduct             Float
+  kategoriProduct          String
+  satuanProduct            String
+  unitPrice                Decimal               @default(0)
+  unitProduct              String
+  createdAt                DateTime              @default(now())
+  updatedAt                DateTime              @updatedAt
+  deletedAt                DateTime?
+  productId                String
+  DeliveryOrderDetail      DeliveryOrderDetail[]
+  product                  MasterBarangJadi      @relation(fields: [productId], references: [id])
+  purchaseOrder            PurchaseOrder         @relation(fields: [purchaseOrderId], references: [id])
+}
+
+model PurchaseOrderTax {
+  id              String         @id @default(uuid())
+  purchaseOrderId String
+  taxId           String
+  taxType         String
+  taxValue        Float
+  taxAmount       Float
+  accountCode     String?
+  createdAt       DateTime       @default(now())
+  deletedAt       DateTime?
+  journalEntry    JournalEntry[]
+  account         Account?       @relation(fields: [accountCode], references: [code])
+  purchaseOrder   PurchaseOrder  @relation(fields: [purchaseOrderId], references: [id])
+  tax             Tax            @relation(fields: [taxId], references: [id])
+
+  @@unique([purchaseOrderId, taxId])
+}
+
+model JournalEntry {
+  id                          String                        @id @default(uuid())
+  spbId                       String?
+  numberJurnal                String?                       @unique
+  module                      String
+  rawMaterialIssueId          String?
+  rawMaterialReceiptId        String?
+  transactionId               String?
+  description                 String
+  referenceNumber             String?
+  isPosted                    Boolean                       @default(false)
+  createdBy                   String
+  date                        DateTime                      @default(now())
+  currencyValue               Decimal                       @default(0)
+  unitId                      String
+  deletedAt                   DateTime?
+  journalId                   String?
+  createdAt                   DateTime                      @default(now())
+  typeJournalEntry            TypePenjualan?                @default(null)
+  status                      JournalEntryStatus            @default(DRAFT)
+  is_intercompany             Boolean                       @default(false)
+  intercompanyReference       String?
+  purchaseOrderTaxId          String?
+  sPBTaxId                    String?
+  currency                    CurrencyType                  @default(RUPIAH)
+  staffId                     String
+  totalBalance                Decimal?
+  totalBalanceUs              Decimal?
+  isRevert                    Revert                        @default(N)
+  isRevertOpen                Boolean                       @default(false)
+  journalEntryId              String?
+  purposeTransaction          String?
+  addjust                     Boolean                       @default(false)
+  JournalAdjustmentSuggestion JournalAdjustmentSuggestion[]
+  intercompanyJournal         JournalEntry?                 @relation("IntercompanyJournal", fields: [intercompanyReference], references: [numberJurnal])
+  relatedIntercompanies       JournalEntry[]                @relation("IntercompanyJournal")
+  Journal                     Journal?                      @relation(fields: [journalId], references: [id])
+  PurchaseOrderTax            PurchaseOrderTax?             @relation(fields: [purchaseOrderTaxId], references: [id])
+  transactionIssueId          RawMaterialIssue?             @relation(fields: [rawMaterialIssueId], references: [id])
+  transactionReceiptId        RawMaterialReceipt?           @relation(fields: [rawMaterialReceiptId], references: [id])
+  SPBTax                      SPBTax?                       @relation(fields: [sPBTaxId], references: [id])
+  spb                         SPB?                          @relation(fields: [spbId], references: [id])
+  staff                       User                          @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  transaction                 CashBankTransaction?          @relation(fields: [transactionId], references: [id])
+  unit                        MasterUnit                    @relation(fields: [unitId], references: [id])
+  details                     JournalEntryDetail[]
+
+  @@index([transactionId])
+  @@index([spbId])
+}
+
+model JournalEntryDetail {
+  id             String       @id @default(uuid())
+  journalEntryId String
+  unitId         String?
+  fixedAssetId   String?
+  accountCode    String
+  debit          Decimal      @default(0)
+  credit         Decimal      @default(0)
+  isTmp          Boolean      @default(false)
+  debitDollar    Decimal      @default(0)
+  creditDollar   Decimal      @default(0)
+  deletedAt      DateTime?
+  createdAt      DateTime     @default(now())
+  description    String?
+  account        Account      @relation(fields: [accountCode], references: [code])
+  fixedAsset     FixedAsset?  @relation("FixedAssetJournalDetails", fields: [fixedAssetId], references: [id])
+  journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id])
+  unit           MasterUnit?  @relation(fields: [unitId], references: [id])
+}
+
+model Receivable {
+  id              String        @id @default(uuid())
+  purchaseOrderId String        @unique
+  amount          Float
+  dueDate         DateTime
+  status          String
+  deletedAt       DateTime?
+  createdAt       DateTime      @default(now())
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+}
+
+model Payable {
+  id        String    @id @default(uuid())
+  vendor    String
+  amount    Float
+  dueDate   DateTime
+  status    String
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model CashBankTransaction {
+  id                         String                       @id @default(uuid())
+  transactionNumber          String                       @unique
+  amountOriginal             Float
+  amountInIDR                Float
+  currency                   String
+  exchangeRate               Decimal                      @default(0)
+  accounIdTax                String?
+  grossAmount                Decimal                      @default(0)
+  administrasiAmount         Decimal                      @default(0)
+  type                       TransactionType
+  description                String
+  date                       DateTime                     @default(now())
+  kategori                   String?
+  to                         String?
+  address                    String?
+  isMaterial                 String                       @default("N")
+  taxType                    String?
+  taxValue                   Decimal                      @default(0)
+  taxAmount                  Decimal                      @default(0)
+  unitId                     String
+  accountCode                String?
+  invoiceId                  String?
+  invoiceEksporId            String?
+  bank_account_id            String?
+  staffId                    String
+  typeTransaction            TypePenjualan?               @default(null)
+  deletedAt                  DateTime?
+  createdAt                  DateTime                     @default(now())
+  isActionEnabled            Boolean                      @default(false)
+  account                    Account?                     @relation(fields: [accountCode], references: [code])
+  bank_account               BankAccount?                 @relation(fields: [bank_account_id], references: [id])
+  invoiceEkspor              InvoiceEkspor?               @relation(fields: [invoiceEksporId], references: [id])
+  invoice                    Invoice?                     @relation(fields: [invoiceId], references: [id])
+  staff                      User                         @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  unit                       MasterUnit                   @relation(fields: [unitId], references: [id])
+  cashBankTransactionDetails CashBankTransactionDetails[]
+  journalEntry               JournalEntry[]
+  withholdingTaxes           WithholdingTax[]
+}
+
+model CashBankTransactionDetails {
+  id                    String              @id @default(uuid())
+  cashBankTransactionId String
+  keterangan            String
+  unitId                String?
+  accountCode           String
+  accountName           String
+  debit                 Decimal             @default(0)
+  credit                Decimal             @default(0)
+  deletedAt             DateTime?
+  createdAt             DateTime            @default(now())
+  account               Account             @relation(fields: [accountCode], references: [code])
+  CashBankTransaction   CashBankTransaction @relation(fields: [cashBankTransactionId], references: [id])
+  unit                  MasterUnit?         @relation(fields: [unitId], references: [id])
+}
+
+model WithholdingTax {
+  id            String              @id @default(uuid())
+  transactionId String
+  type          TaxType
+  amount        Float
+  createdAt     DateTime            @default(now())
+  transaction   CashBankTransaction @relation(fields: [transactionId], references: [id])
+}
+
+model SalesPlan {
+  id            String          @id @default(uuid())
+  staffId       String
+  date          DateTime        @default(now())
+  description   String
+  value_rkap    Decimal
+  unitId        String
+  periode_month String
+  status        SalesPlanStatus @default(PENDING)
+  typeSalesPlan TypePenjualan?  @default(null)
+  deletedAt     DateTime?
+  createdAt     DateTime        @default(now())
+  staff         User            @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  unit          MasterUnit      @relation(fields: [unitId], references: [id])
+}
+
+model TaxReport {
+  id           String    @id @default(uuid())
+  month        String
+  taxAmount    Float
+  verifiedById String?
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  verifiedBy   User?     @relation(fields: [verifiedById], references: [id])
+}
+
+model ApprovalRequest {
+  id               String            @id @default(uuid())
+  requestType      ApprovalType
+  referenceId      String
+  createdById      String
+  approvedById     String?
+  status           ApprovalStatus    @default(PENDING)
+  createdAt        DateTime          @default(now())
+  approvedAt       DateTime?
+  deletedAt        DateTime?
+  ApprovalDocument ApprovalDocument?
+  approvedBy       User?             @relation("ApprovedByUser", fields: [approvedById], references: [id])
+  createdBy        User              @relation("CreatedByUser", fields: [createdById], references: [id])
+}
+
+model DeliveryOrder {
+  id                  String                @id @default(uuid())
+  purchaseOrderId     String
+  au58Id              String?               @unique
+  shippedAt           DateTime?
+  deliveredAt         DateTime?
+  typeSalesDelivery   TypePenjualan?        @default(null)
+  staffId             String
+  unitId              String
+  status              DeliveryOrderStatus   @default(DRAFT)
+  selectionStatus     SelectionStatus       @default(NOT_SELECTED)
+  deletedAt           DateTime?
+  createdAt           DateTime              @default(now())
+  totalAmount         Float                 @default(0)
+  Contract            Contract?
+  au58                AU58?                 @relation(fields: [au58Id], references: [id])
+  purchaseOrder       PurchaseOrder         @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  staff               User                  @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  unit                MasterUnit            @relation(fields: [unitId], references: [id])
+  DeliveryOrderDetail DeliveryOrderDetail[]
+  SPB                 SPB[]
+  spb                 StockRequest?
+}
+
+model StockRequest {
+  id              String        @id @default(uuid())
+  deliveryOrderId String        @unique
+  status          SPBStatus
+  userId          String?
+  createdAt       DateTime      @default(now())
+  deliveryOrder   DeliveryOrder @relation(fields: [deliveryOrderId], references: [id])
+  user            User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ApprovalDocument {
+  id          String          @id @default(uuid())
+  approvalId  String          @unique
+  documentUrl String
+  deletedAt   DateTime?
+  approval    ApprovalRequest @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+}
+
+model MasterUnit {
+  id                               String                             @id @default(uuid())
+  kode                             String                             @unique
+  nama                             String                             @unique
+  createdAt                        DateTime                           @default(now())
+  updatedAt                        DateTime                           @updatedAt
+  deletedAt                        DateTime?
+  bankAccount                      BankAccount[]
+  Budget                           Budget[]
+  cashBankTransaction              CashBankTransaction[]
+  cashBankTransactionDetails       CashBankTransactionDetails[]
+  deliveryOrder                    DeliveryOrder[]
+  generalLedger                    GeneralLedger[]
+  inventoryTransaction             InventoryTransaction[]
+  inventoryTransactionBarangMentah InventoryTransactionBarangMentah[]
+  invoice                          Invoice[]
+  invoiceEkspor                    InvoiceEkspor[]
+  journalEntry                     JournalEntry[]
+  journalEntryDetail               JournalEntryDetail[]
+  masterAcitva                     MasterAcitva[]
+  masterRawMaterial                MasterRawMaterial[]
+  openingBalance                   OpeningBalance[]
+  openingBalanceHeader             OpeningBalanceHeader[]
+  OpeningBankDetails               OpeningBankDetails[]
+  productionIssue                  ProductionIssue[]
+  productionReceipt                ProductionReceipt[]
+  productionReceiptItem            ProductionReceiptItem[]
+  purchaseOrder                    PurchaseOrder[]
+  rawMaterialReceipt               RawMaterialReceipt[]
+  sPB                              SPB[]
+  salesPlan                        SalesPlan[]
+  user                             User[]
+}
+
+model MasterSatuan {
+  id         String    @id @default(uuid())
+  kode       String    @unique
+  name       String
+  keterangan String
+  staffId    String
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+  staff      User      @relation(fields: [staffId], references: [id], onDelete: Cascade)
+}
+
+model MasterKategoriBarangJadi {
+  id        String    @id @default(uuid())
+  kode      String    @unique
+  nama      String
+  staffId   String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  staff     User      @relation(fields: [staffId], references: [id], onDelete: Cascade)
+}
+
+model AU58 {
+  id              String         @id @default(uuid())
+  purchaseOrderId String
+  documentNumber  String
+  description     String
+  createdAt       DateTime       @default(now())
+  deletedAt       DateTime?
+  au58Date        DateTime?      @db.Timestamp(6)
+  purchaseOrder   PurchaseOrder  @relation(fields: [purchaseOrderId], references: [id])
+  DeliveryOrder   DeliveryOrder?
+}
+
+model SPB {
+  id                String          @id @default(uuid())
+  noSpb             String
+  purchaseOrderId   String
+  orderNumber       String
+  date              DateTime
+  description       String?
+  franco            String
+  fileUrl           String?
+  customerName      String
+  subtotalAmount    Float
+  taxAmount         Decimal         @default(0)
+  totalAmount       Decimal         @default(0)
+  unitId            String
+  isComplete        IsCompleteSPB
+  isCekPajak        Boolean         @default(false)
+  tanggalPengiriman DateTime        @default(now())
+  selectionStatus   SelectionStatus @default(NOT_SELECTED)
+  typeSalesSPb      TypePenjualan?  @default(null)
+  createdAt         DateTime        @default(now())
+  status            SPBStatus       @default(CREATED)
+  staffId           String
+  deletedAt         DateTime?
+  deliveryOrderId   String?
+  invoice           Invoice[]
+  InvoiceDetail     InvoiceDetail[]
+  invoiceEkspor     InvoiceEkspor?
+  journalEntry      JournalEntry[]
+  DeliveryOrder     DeliveryOrder?  @relation(fields: [deliveryOrderId], references: [id])
+  purchaseOrder     PurchaseOrder   @relation(fields: [purchaseOrderId], references: [id])
+  staff             User            @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  unit              MasterUnit      @relation(fields: [unitId], references: [id])
+  spbTax            SPBTax[]
+  itemsSPB          itemsSPB[]
+}
+
+model itemsSPB {
+  id                       String               @id @default(uuid())
+  spbId                    String
+  productId                String
+  quantity                 Float?
+  unitPrice                Decimal              @default(0)
+  total                    Float
+  orderNumber              String
+  customerName             String
+  stockProduct             Float
+  priceProduct             Float
+  kodeBarangProduct        String
+  namabarangProduct        String
+  namabarangProductInvoice String
+  spesifikasiProduct       String
+  beratproduct             Float
+  kategoriProduct          String
+  satuanProduct            String
+  unitProduct              String
+  isCekPajak               Boolean              @default(false)
+  typeSalesSPb             TypePenjualan?       @default(null)
+  timestamp                DateTime             @default(now())
+  date                     DateTime             @default(now())
+  deletedAt                DateTime?
+  createdAt                DateTime             @default(now())
+  qtyKirim                 Float?
+  namaAtasan               String?
+  jabatanAtasan            String?
+  dikirimDengan            String?
+  deliveryOrderDetailId    String?
+  InvoiceDetail            InvoiceDetail[]
+  DeliveryOrderDetail      DeliveryOrderDetail? @relation(fields: [deliveryOrderDetailId], references: [id])
+  product                  MasterBarangJadi     @relation(fields: [productId], references: [id])
+  spb                      SPB                  @relation(fields: [spbId], references: [id])
+}
+
+model countCekPajak {
+  id              String    @id @default(uuid())
+  purchaseOrderId String    @unique
+  count           Int
+  deletedAt       DateTime?
+  createdAt       DateTime  @default(now())
+}
+
+model SPBTax {
+  id           String         @id @default(uuid())
+  spbId        String
+  taxId        String
+  taxType      String
+  taxValue     Float
+  taxAmount    Float
+  accountCode  String?
+  createdAt    DateTime       @default(now())
+  deletedAt    DateTime?
+  journalEntry JournalEntry[]
+  account      Account?       @relation(fields: [accountCode], references: [code])
+  spb          SPB            @relation(fields: [spbId], references: [id])
+  tax          Tax            @relation(fields: [taxId], references: [id])
+
+  @@unique([spbId, taxId])
+}
+
+model Invoice {
+  id                  String                @id @default(uuid())
+  spbId               String?
+  contractId          String?               @unique
+  invoiceNumber       String
+  invoiceDate         DateTime
+  amountWithTax       Float
+  totalAmount         Float
+  createdAt           DateTime              @default(now())
+  deletedAt           DateTime?
+  selectionStatus     SelectionStatus       @default(NOT_SELECTED)
+  typeInvoice         TypePenjualan?        @default(null)
+  paymentDate         DateTime?
+  status              StatusInvoice         @default(HUTANG)
+  userId              String?
+  masterUnitId        String?
+  downPayment         Decimal?
+  bankAccountId       String?               @db.VarChar(36)
+  namaAtasan          String?               @db.VarChar(255)
+  jabatanAtasan       String?               @db.VarChar(255)
+  amountTax           Float?
+  CashBankTransaction CashBankTransaction[]
+  BankAccount         BankAccount?          @relation(fields: [bankAccountId], references: [id])
+  contract            Contract?             @relation(fields: [contractId], references: [id])
+  MasterUnit          MasterUnit?           @relation(fields: [masterUnitId], references: [id])
+  spb                 SPB?                  @relation(fields: [spbId], references: [id], onDelete: Restrict)
+  User                User?                 @relation(fields: [userId], references: [id])
+  InvoiceDetail       InvoiceDetail[]
+  invoiceTaxes        InvoiceTax[]
+  Tax                 Tax[]
+}
+
+model FixedAsset {
+  id                 String               @id @default(uuid())
+  code               String               @unique
+  name               String
+  acquisitionDate    DateTime
+  acquisitionValue   Float
+  usefulLife         Int
+  depreciationMethod String
+  description        String?
+  createdAt          DateTime             @default(now())
+  deletedAt          DateTime?
+  journalDetails     JournalEntryDetail[] @relation("FixedAssetJournalDetails")
+}
+
+model InventoryTransaction {
+  id              String           @id @default(uuid())
+  productId       String
+  transactionType InventoryType
+  source          String?
+  sourceId        String?
+  quantity        Float
+  unitId          String
+  satuan          String
+  nilaiSatuan     Float
+  transactionDate DateTime         @default(now())
+  createdAt       DateTime         @default(now())
+  deletedAt       DateTime?
+  revertedAt      DateTime?
+  product         MasterBarangJadi @relation(fields: [productId], references: [id])
+  unit            MasterUnit       @relation(fields: [unitId], references: [id])
+}
+
+model InventoryTransactionBarangMentah {
+  id               String            @id @default(uuid())
+  productId        String
+  transactionType  InventoryType
+  source           String?
+  sourceId         String?
+  quantity         Float
+  satuan           String
+  nilaiSatuan      Float
+  unitId           String
+  averageCostAfter Decimal           @default(0)
+  stockAfter       Float?
+  transactionDate  DateTime          @default(now())
+  createdAt        DateTime          @default(now())
+  deletedAt        DateTime?
+  revertedAt       DateTime?
+  product          MasterRawMaterial @relation(fields: [productId], references: [id])
+  unit             MasterUnit        @relation(fields: [unitId], references: [id])
+}
+
+model StockSummaryBarangMentah {
+  id              String            @id @default(uuid())
+  productId       String            @unique
+  stock           Float
+  averageCost     Float
+  updatedAt       DateTime          @updatedAt
+  createdAt       DateTime          @default(now())
+  deletedAt       DateTime?
+  transactionDate DateTime          @default(now())
+  product         MasterRawMaterial @relation(fields: [productId], references: [id])
+}
+
+model OpeningBalanceHeader {
+  id                   String                   @id @default(uuid())
+  fiscalYear           String
+  unitId               String
+  staffId              String
+  status               String                   @default("draft")
+  postedAt             DateTime?
+  notes                String?
+  date                 DateTime
+  totalBalance         Decimal
+  deletedAt            DateTime?
+  createdAt            DateTime?
+  isRevert             Revert                   @default(N)
+  isRevertOpen         Boolean                  @default(false)
+  details              OpeningBalance[]
+  staff                User                     @relation(fields: [staffId], references: [id])
+  unit                 MasterUnit               @relation(fields: [unitId], references: [id])
+  openingMaterialItems RawMaterialOpeningItem[]
+}
+
+model OpeningBalance {
+  id          String               @id @default(uuid())
+  headerId    String
+  unitId      String
+  accountCode String
+  staffId     String
+  debit       Float                @default(0)
+  credit      Float                @default(0)
+  fiscalYear  String
+  deletedAt   DateTime?
+  createdAt   DateTime?
+  account     Account              @relation(fields: [accountCode], references: [code])
+  header      OpeningBalanceHeader @relation(fields: [headerId], references: [id])
+  staff       User                 @relation(fields: [staffId], references: [id])
+  unit        MasterUnit           @relation(fields: [unitId], references: [id])
+
+  @@unique([accountCode, headerId])
+}
+
+model RawMaterialOpeningItem {
+  id             String               @id @default(uuid())
+  openingId      String
+  itemCode       String
+  itemName       String
+  accountCode    String
+  unit           String
+  nilaiSatuan    Decimal
+  quantity       Decimal
+  satuan         String
+  stok           Float
+  Total          Decimal
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  deletedAt      DateTime?
+  productId      String?
+  openingBalance OpeningBalanceHeader @relation(fields: [openingId], references: [id], onDelete: Cascade)
+}
+
+model MasterAcitva {
+  id          String     @id @default(uuid())
+  itemCode    String     @unique
+  itemName    String
+  unitId      String
+  satuan      String
+  accountCode String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+  account     Account    @relation(fields: [accountCode], references: [code])
+  unit        MasterUnit @relation(fields: [unitId], references: [id])
+}
+
+model MasterRawMaterial {
+  id                               String                             @id @default(uuid())
+  itemCode                         String
+  itemName                         String
+  unitId                           String
+  satuan                           String
+  accountCode                      String
+  createdAt                        DateTime                           @default(now())
+  updatedAt                        DateTime                           @updatedAt
+  deletedAt                        DateTime?
+  inventoryTransactionBarangMentah InventoryTransactionBarangMentah[]
+  account                          Account                            @relation(fields: [accountCode], references: [code])
+  unit                             MasterUnit                         @relation(fields: [unitId], references: [id])
+  RawMaterialIssuetItem            RawMaterialIssuetItem[]
+  RawMaterialReceiptItem           RawMaterialReceiptItem[]
+  stockSummaryBarangMentah         StockSummaryBarangMentah?
+}
+
+model MasterRekananBahanBaku {
+  id                 String               @id @default(uuid())
+  nomorPengenal      String               @unique
+  namaRekanan        String
+  alamatRekanan      String
+  createdAt          DateTime             @default(now())
+  deletedAt          DateTime?
+  accountCode        String
+  code               String?
+  account            Account              @relation(fields: [accountCode], references: [code])
+  RawMaterialReceipt RawMaterialReceipt[]
+}
+
+model RawMaterialReceipt {
+  id                 String                   @id @default(uuid())
+  documentCode       String
+  documentNo         String
+  supplierId         String
+  noRekening         String
+  pengadaanBarang    PengadaanBarang
+  faktur             String
+  unitId             String
+  date               DateTime
+  isLunas            String                   @default("N")
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+  deletedAt          DateTime?
+  downPayment        Decimal?
+  status             String?                  @db.VarChar(20)
+  simpanKeBarangJadi Boolean?
+  journalEntry       JournalEntry[]
+  supplier           MasterRekananBahanBaku   @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  unit               MasterUnit               @relation(fields: [unitId], references: [id])
+  items              RawMaterialReceiptItem[]
+}
+
+model RawMaterialReceiptItem {
+  id                  String             @id @default(uuid())
+  receiptId           String
+  masterRawMaterialId String
+  nilaiSatuan         Float
+  quantity            Float
+  satuan              String
+  stok                Float
+  Total               Float
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  deletedAt           DateTime?
+  masterRawMaterial   MasterRawMaterial  @relation(fields: [masterRawMaterialId], references: [id], onDelete: Cascade)
+  receipt             RawMaterialReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+}
+
+model RawMaterialIssue {
+  id            String                  @id @default(uuid())
+  documentCode  String
+  documentNo    String
+  diPergunakan  DiPergunakan
+  keterangan    String
+  noBppTerakhir String
+  date          DateTime
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+  deletedAt     DateTime?
+  journalEntry  JournalEntry[]
+  items         RawMaterialIssuetItem[]
+}
+
+model RawMaterialIssuetItem {
+  id                  String            @id @default(uuid())
+  issueId             String
+  masterRawMaterialId String
+  nilaiSatuan         Float
+  quantity            Float
+  satuan              String
+  Total               Float
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  deletedAt           DateTime?
+  issue               RawMaterialIssue  @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  masterRawMaterial   MasterRawMaterial @relation(fields: [masterRawMaterialId], references: [id], onDelete: Cascade)
+}
+
+model MasterBarangJadi {
+  id                    String                  @id @default(uuid())
+  kodeBarang            String
+  namaBarang            String
+  satuan                String
+  kategori              String
+  nilaiSatuan           Float
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  deletedAt             DateTime?
+  staffId               String
+  DeliveryOrderDetail   DeliveryOrderDetail[]
+  inventoryTransactions InventoryTransaction[]
+  staff                 User                    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  ProductionCostItem    ProductionCostItem[]
+  ProductionIssueItem   ProductionIssueItem[]
+  ProductionReceiptItem ProductionReceiptItem[]
+  purchaseOrderItem     PurchaseOrderItem[]
+  StockAverage          StockAverage?
+  itemsSPB              itemsSPB[]
+}
+
+model ProductionReceipt {
+  id             String                  @id @default(uuid())
+  documentCode   String
+  documentNumber String
+  date           DateTime
+  unitId         String
+  staffId        String
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+  deletedAt      DateTime?
+  status         String?                 @db.VarChar(20)
+  staff          User                    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  unit           MasterUnit              @relation(fields: [unitId], references: [id])
+  items          ProductionReceiptItem[]
+}
+
+model ProductionReceiptItem {
+  id                String            @id @default(uuid())
+  receiptId         String
+  finishedGoodId    String
+  quantity          Float
+  Satuan            String
+  nilaiSatuan       Float
+  stok              Float
+  spesifikasi       String
+  namaBarang        String?
+  kodeBarang        String?
+  kategori          String?
+  Total             Float
+  unitId            String
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  deletedAt         DateTime?
+  productionIssueId String?
+  finishedGood      MasterBarangJadi  @relation(fields: [finishedGoodId], references: [id])
+  ProductionIssue   ProductionIssue?  @relation(fields: [productionIssueId], references: [id])
+  receipt           ProductionReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  unit              MasterUnit        @relation(fields: [unitId], references: [id])
+}
+
+model ProductionIssue {
+  id                  String                  @id @default(uuid())
+  documentCode        String                  @unique
+  documentNumber      String
+  date                DateTime
+  unitId              String
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+  deletedAt           DateTime?
+  diPergunakan        String?
+  keterangan          String?
+  staffId             String
+  status              String                  @default("DRAFT") @db.VarChar(20)
+  User                User                    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  unit                MasterUnit              @relation(fields: [unitId], references: [id])
+  ProductionIssueItem ProductionIssueItem[]
+  items               ProductionReceiptItem[]
+}
+
+model ProductionIssueItem {
+  id             String           @id @default(uuid())
+  issueId        String
+  finishedGoodId String
+  quantity       Float
+  Satuan         String
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  deletedAt      DateTime?
+  nilaiSatuan    Float
+  finishedGood   MasterBarangJadi @relation(fields: [finishedGoodId], references: [id])
+  receipt        ProductionIssue  @relation(fields: [issueId], references: [id], onDelete: Cascade)
+}
+
+model ProductionCost {
+  id             String               @id @default(uuid())
+  documentCode   String               @unique
+  documentNumber String
+  reportDate     DateTime
+  unitCode       String
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  deletedAt      DateTime?
+  items          ProductionCostItem[]
+}
+
+model ProductionCostItem {
+  id             String           @id @default(uuid())
+  costId         String
+  finishedGoodId String
+  quantity       Int
+  unitCost       Float
+  totalCost      Float
+  notes          String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  deletedAt      DateTime?
+  cost           ProductionCost   @relation(fields: [costId], references: [id])
+  finishedGood   MasterBarangJadi @relation(fields: [finishedGoodId], references: [id])
+}
+
+model StockAverage {
+  id            String           @id @default(uuid())
+  productId     String           @unique
+  totalQuantity Int
+  totalValue    Float
+  averageCost   Float
+  updatedAt     DateTime         @updatedAt
+  deletedAt     DateTime?
+  createdAt     DateTime         @default(now())
+  product       MasterBarangJadi @relation(fields: [productId], references: [id])
+}
+
+model AccountMapping {
+  id              String                 @id @default(uuid())
+  module          Module
+  transactionType TransactionTypeMapping
+  position        String
+  usage           String
+  accountCode     String
+  deletedAt       DateTime?
+  createdAt       DateTime               @default(now())
+  account         Account                @relation(fields: [accountCode], references: [code])
+
+  @@unique([module, transactionType, position, usage])
+}
+
+model InvoiceEkspor {
+  id                  String                @id @default(cuid())
+  spbId               String                @unique
+  invoiceNumber       String                @unique
+  proformaNumber      String?
+  date                DateTime
+  purchaseOrder       String
+  customerId          String
+  incoterms           Incoterms             @default(null)
+  status              StatusInvoice         @default(HUTANG)
+  staffId             String
+  totalCIF            Decimal               @default(0)
+  typePayment         TypePayment           @default(FULLPAYMENT_AFTER_INVOICE)
+  downPayment         Decimal               @default(0)
+  paymentDate         DateTime?
+  masterUnitId        String?
+  currency            String                @default("USD")
+  description         String?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  deletedAt           DateTime?
+  fileUrl             String?
+  donePayment         Decimal               @default(0)
+  CashBankTransaction CashBankTransaction[]
+  costSummary         CostSummary[]
+  customer            Customer              @relation(fields: [customerId], references: [id])
+  MasterUnit          MasterUnit?           @relation(fields: [masterUnitId], references: [id])
+  spb                 SPB                   @relation(fields: [spbId], references: [id])
+  staff               User                  @relation(fields: [staffId], references: [id])
+}
+
+model CostSummary {
+  id          String        @id @default(uuid())
+  invoiceId   String
+  amount      Float
+  description String
+  type        String
+  createdAt   DateTime      @default(now())
+  invoice     InvoiceEkspor @relation(fields: [invoiceId], references: [id])
+}
+
+model JournalAdjustmentSuggestion {
+  id             String           @id @default(cuid())
+  journalEntryId String
+  transactionId  String
+  status         SuggestionStatus @default(PENDING)
+  createdAt      DateTime         @default(now())
+  appliedAt      DateTime?
+  appliedBy      String?
+  changes        Json
+  journalEntry   JournalEntry     @relation(fields: [journalEntryId], references: [id])
+}
+
+model InvoiceDetail {
+  id         String    @id @db.VarChar(36)
+  invoiceId  String    @db.VarChar(36)
+  spbId      String    @db.VarChar(36)
+  itemsSpbId String    @db.VarChar(36)
+  quantity   Float?
+  unitPrice  Decimal   @default(0) @db.Decimal(18, 2)
+  total      Float     @default(0)
+  createdAt  DateTime  @default(now())
+  deletedAt  DateTime? @db.Timestamp(6)
+  Invoice    Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  itemsSPB   itemsSPB  @relation(fields: [itemsSpbId], references: [id], onDelete: NoAction)
+  SPB        SPB       @relation(fields: [spbId], references: [id], onDelete: NoAction)
+
+  @@index([itemsSpbId])
+  @@index([spbId])
+  @@index([invoiceId])
+}
+
+model DeliveryOrderDetail {
+  id                       String            @id
+  deliveryOrderId          String
+  purchaseOrderItemId      String
+  productId                String
+  quantity                 Float?
+  qtyKirim                 Float?
+  unitPrice                Decimal           @default(0) @db.Decimal
+  total                    Float
+  orderNumber              String
+  customerName             String
+  stockProduct             Float
+  priceProduct             Float
+  kodeBarangProduct        String
+  namabarangProduct        String
+  namabarangProductInvoice String
+  spesifikasiProduct       String
+  beratproduct             Float
+  kategoriProduct          String
+  satuanProduct            String
+  unitProduct              String
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @default(now())
+  deletedAt                DateTime?
+  DeliveryOrder            DeliveryOrder     @relation(fields: [deliveryOrderId], references: [id], onDelete: Cascade)
+  MasterBarangJadi         MasterBarangJadi  @relation(fields: [productId], references: [id], onDelete: NoAction)
+  PurchaseOrderItem        PurchaseOrderItem @relation(fields: [purchaseOrderItemId], references: [id], onDelete: NoAction)
+  itemsSPB                 itemsSPB[]
+}
+
+enum SelectionStatus {
+  SELECTED
+  NOT_SELECTED
+}
+
+enum IsRoot {
+  Y
+  N
+}
+
+enum LogStatus {
+  SUCCESS
+  ERROR
+}
+
+enum StatusTax {
+  PENDING
+  REVIEWED
+  APPROVED
+}
+
+enum TypeTax {
+  VAT_OUT
+  VAT_IN
+  WITHHOLD
+  SALARY
+  FINAL
+}
+
+enum Position {
+  DEBIT
+  CREDIT
+}
+
+enum StatusFinance {
+  DRAFT
+  VERIFIED
+  POSTED
+}
+
+enum NormalBalance {
+  DEBIT
+  CREDIT
+}
+
+enum Islocked {
+  N
+  Y
+}
+
+enum PurchaseOrderStatus {
+  WAITING
+  DELIVERY
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum TypePenjualan {
+  RA
+  RN
+  RN_EKSPOR
+  RA_EKSPOR
+  null
+  pusat
+  Rubber_Thread
+}
+
+enum CekPajak {
+  YES
+  NO
+}
+
+enum TypePayment {
+  DOWNPAYMENT
+  FULLPAYMENT_BEFORE_INVOICE
+  FULLPAYMENT_AFTER_INVOICE
+  OTHER
+}
+
+enum CurrencyType {
+  RUPIAH
+  DOLLAR
+}
+
+enum JournalEntryStatus {
+  DRAFT
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+enum Revert {
+  Y
+  N
+}
+
+enum TransactionType {
+  CASH_IN
+  CASH_OUT
+  TRANSFER_IN
+  TRANSFER_OUT
+  CHEQUE_IN
+  CHEQUE_OUT
+  GIRO_IN
+  GIRO_OUT
+  E_WALLET_IN
+  E_WALLET_OUT
+  OTHER_IN
+  OTHER_OUT
+}
+
+enum TaxType {
+  PPH22
+  PPH23
+  PPH4_2
+}
+
+enum SalesPlanStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  VERIFED
+}
+
+enum ApprovalType {
+  SALES_PLAN
+  PURCHASE_ORDER
+  STOCK_REQUEST
+  PRODUCTION
+  JOURNAL_ENTRY
+  PAYMENT_VOUCHER
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum DeliveryOrderStatus {
+  DRAFT
+  WAITING_FOR_REVIEW
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum SPBStatus {
+  CREATED
+  VERIFIED
+  APPROVED
+}
+
+enum IsCompleteSPB {
+  NO
+  YES
+}
+
+enum StatusInvoice {
+  LUNAS
+  HUTANG
+}
+
+enum InventoryType {
+  IN
+  OUT
+}
+
+enum ProductionInventoryType {
+  RECEIPT_PROD
+  ISSUE_PROD
+}
+
+enum ItemType {
+  RAW_MATERIAL
+  FINISHED_GOOD
+}
+
+enum PengadaanBarang {
+  LOKAL
+  DISTRIK
+  KANDIR
+  SEINDUK
+}
+
+enum DiPergunakan {
+  kebun_sendiri
+  unit_seinduk
+  pihak_ketiga
+}
+
+enum Module {
+  SALES
+  PURCHASE
+  EXPENSE
+  PRODUCTION
+  PAYMENT
+  RECEIPT
+  ISSUE
+  INVENTORY
+  JOURNAL
+  ASSET
+  TAX
+  FINANCE
+  REPORT
+  USER_MANAGEMENT
+  FINANCE_RN
+}
+
+enum TransactionTypeMapping {
+  CASH
+  INVOICE
+  CREDIT
+  MATERIAL_RECEIPT
+  MATERIAL_ISSUE
+  PAYMENT
+  PURCHASE_ORDER
+  SALES_ORDER
+  JOURNAL_ENTRY
+  STOCK_ADJUSTMENT
+  PRODUCTION
+  RETURN
+  EXPENSE
+  DEPOSIT
+  WITHDRAWAL
+  TRANSFER
+  WRITE_OFF
+  INVOICE_RN
+  TRANSACTON_MIRROR
+  TRANSACTON_DOLLAR
+}
+
+enum Incoterms {
+  CIF
+  FOB
+  null
+}
+
+enum SuggestionStatus {
+  PENDING
+  APPLIED
+  DISMISSED
+}

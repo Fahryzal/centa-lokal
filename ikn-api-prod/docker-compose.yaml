@@ -1,0 +1,18 @@
+version: '3'
+services:
+  app:
+    image: PROJECT_NAME:youone26/nestjs-app:latest # <- nanti diganti dengan image yang di-push dari GitHub Actions
+    ports:
+      - PROJECT_PORT:7198 # <- port host:container (misal 7198:7198)
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 250M
+    networks:
+      - swarm-network-1
+
+networks:
+  swarm-network-1:
+    external: true

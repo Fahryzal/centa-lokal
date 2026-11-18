@@ -1,0 +1,4 @@
+.gitlab-ci.yml
+docker-compose.yaml
+Dockerfile
+README.md

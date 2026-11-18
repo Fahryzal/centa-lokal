@@ -1,0 +1,38 @@
+//handle time out
+export const timeOutExtApi = 10000;
+export const timeOutTransaction = 11000;
+//exlude fields prisma tabel faktur kelauran lives
+export const exPrismaFieldFktrKleLvs = [
+	'tracking_id_prev',
+	'tracking_kd_transaksi_prev',
+	'tracking_fg_pengganti_prev',
+	'tracking_nomor_faktur_prev',
+	'tracking_status_data_prev',
+	'tracking_approval_sign_diganti',
+	'tracking_id_next',
+	'additional_field1',
+	'additional_field2',
+	'additional_field3',
+	'additional_field4',
+	'additional_field5',
+	'additional_invoice1',
+	'additional_invoice2',
+	'additional_invoice3',
+	'additional_invoice4',
+	'additional_invoice5',
+	'additional_invoice6',
+	'additional_invoice7',
+	'additional_invoice8',
+	'additional_invoice9',
+	'additional_invoice10',
+	'additional_invoice11',
+	'additional_invoice12',
+	'additional_invoice13',
+	'additional_invoice14',
+	'additional_invoice15',
+	'additional_invoice16',
+	'additional_invoice17',
+	'additional_invoice18',
+	'additional_invoice19',
+	'additional_invoice20',
+];
